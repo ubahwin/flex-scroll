@@ -35,7 +35,6 @@ struct VerticalScrollView: View {
 
             VStack {
                 Text(moveOffset.description)
-                Slider(value: $moveOffset, in: -10000...10000)
                 Spacer()
             }
         }

@@ -28,13 +28,13 @@ public struct FlexScrollView<Content: View>: View {
     @State private var contentHeight: CGFloat = 0
     @State private var loading = false
 
-    private var moveOffsetRep: CGFloat = 0
-    @State private var additionOffsetRep: CGFloat = 0
+    @State private var internalOffset: CGFloat = 0
+    @State private var internalAdditionOffset: CGFloat = 0
 
     private let axis: Axis.Set
-    @Binding var moveOffset: CGFloat
-    @Binding var additionOffset: CGFloat
-    @Binding var goToMiddle: Bool
+    @Binding private var externalOffset: CGFloat
+    @Binding private var externalAdditionOffset: CGFloat
+    @Binding private var goToMiddle: Bool
     private let startInMiddle: Bool
     private let goBackBeforeLoad: Bool
     private let load: (Direction) -> Void
@@ -44,8 +44,8 @@ public struct FlexScrollView<Content: View>: View {
 
     public init(
         axis: Axis.Set = .vertical,
-        offset: Binding<CGFloat>,
-        additionOffset: Binding<CGFloat>,
+        offset: Binding<CGFloat> = .constant(.infinity),
+        additionOffset: Binding<CGFloat> = .constant(.infinity),
         startInMiddle: Bool = false,
         goBackBeforeLoad: Bool = true,
         goToMiddle: Binding<Bool>? = nil,
@@ -56,8 +56,15 @@ public struct FlexScrollView<Content: View>: View {
     ) {
         self.axis = axis
 
-        self._moveOffset = offset
-        self._additionOffset = additionOffset
+        self._externalOffset = Binding(
+            get: { offset.wrappedValue },
+            set: { offset.wrappedValue = $0 }
+        )
+
+        self._externalAdditionOffset = Binding(
+            get: { additionOffset.wrappedValue },
+            set: { additionOffset.wrappedValue = $0 }
+        )
 
         if let goToMiddle {
             self._goToMiddle = goToMiddle
@@ -73,6 +80,22 @@ public struct FlexScrollView<Content: View>: View {
         self.loadParamOnEnd = loadParameterOnEnd
 
         self.content = content()
+    }
+
+    private var isExternalOffset: Bool {
+        externalOffset != .infinity
+    }
+
+    private var isExternalAdditionOffset: Bool {
+        externalAdditionOffset != .infinity
+    }
+
+    private var currentOffset: CGFloat {
+        isExternalOffset ? externalOffset : internalOffset
+    }
+
+    private var currentAdditionOffset: CGFloat {
+        isExternalAdditionOffset ? externalAdditionOffset : internalAdditionOffset
     }
 
     public var body: some View {
@@ -94,15 +117,33 @@ public struct FlexScrollView<Content: View>: View {
                             contentWidth = geometryIn.size.width / 2
 
                             if !startInMiddle {
-                                moveOffset = contentWidth - screenWidth / 2
-                                additionOffset = moveOffset
+                                if isExternalOffset {
+                                    externalOffset = contentWidth - screenWidth / 2
+                                } else {
+                                    internalOffset = contentWidth - screenWidth / 2
+                                }
+
+                                if isExternalAdditionOffset {
+                                    externalAdditionOffset = currentOffset
+                                } else {
+                                    internalAdditionOffset = currentOffset
+                                }
                             }
                         } else {
                             contentHeight = geometryIn.size.height / 2
 
                             if !startInMiddle {
-                                moveOffset = contentHeight - screenHeight / 2
-                                additionOffset = moveOffset
+                                if isExternalOffset {
+                                    externalOffset = contentHeight - screenHeight / 2
+                                } else {
+                                    internalOffset = contentHeight - screenHeight / 2
+                                }
+
+                                if isExternalAdditionOffset {
+                                    externalAdditionOffset = currentOffset
+                                } else {
+                                    internalAdditionOffset = currentOffset
+                                }
                             }
                         }
                     }
@@ -116,31 +157,50 @@ public struct FlexScrollView<Content: View>: View {
                                 let deltaWidth = newContentWidth - contentWidth
 
                                 if deltaWidth > 0 {
-                                    moveOffset += deltaWidth
+                                    if isExternalOffset {
+                                        externalOffset += deltaWidth
+                                    } else {
+                                        internalOffset += deltaWidth
+                                    }
                                 }
 
-                                additionOffset = moveOffset
+                                if isExternalAdditionOffset {
+                                    externalAdditionOffset = currentOffset
+                                } else {
+                                    internalAdditionOffset = currentOffset
+                                }
                             }
 
                             contentWidth = newContentWidth
                         } else {
                             // for pagination offset shift
                             let newContentHeight = size.height / 2
-                            let deltaHeight = newContentHeight - contentHeight
 
-                            if deltaHeight > 0 {
-                                moveOffset += deltaHeight
+                            if goBackBeforeLoad {
+                                let deltaHeight = newContentHeight - contentHeight
+
+                                if deltaHeight > 0 {
+                                    if isExternalOffset {
+                                        externalOffset += deltaHeight
+                                    } else {
+                                        internalOffset += deltaHeight
+                                    }
+                                }
+
+                                if isExternalAdditionOffset {
+                                    externalAdditionOffset = currentOffset
+                                } else {
+                                    internalAdditionOffset = currentOffset
+                                }
                             }
-
-                            additionOffset = moveOffset
 
                             contentHeight = newContentHeight
                         }
                     }
                 })
                 .offset(
-                    x: axis == .horizontal ? moveOffset : 0,
-                    y: axis == .horizontal ? 0 : moveOffset
+                    x: axis == .horizontal ? currentOffset : 0,
+                    y: axis == .horizontal ? 0 : currentOffset
                 )
                 .frame(
                     width: axis == .horizontal ? screenWidth : nil,
@@ -150,9 +210,17 @@ public struct FlexScrollView<Content: View>: View {
                     DragGesture()
                         .onChanged { value in
                             if axis == .horizontal {
-                                moveOffset = value.translation.width + additionOffset
+                                if isExternalOffset {
+                                    externalOffset = value.translation.width + currentAdditionOffset
+                                } else {
+                                    internalOffset = value.translation.width + currentAdditionOffset
+                                }
                             } else {
-                                moveOffset = value.translation.height + additionOffset
+                                if isExternalOffset {
+                                    externalOffset = value.translation.height + currentAdditionOffset
+                                } else {
+                                    internalOffset = value.translation.height + currentAdditionOffset
+                                }
                             }
 
                             if loading {
@@ -163,25 +231,25 @@ public struct FlexScrollView<Content: View>: View {
                             let additionWidthOffset: CGFloat = 90
 
                             if axis == .horizontal {
-                                if moveOffset >= contentWidth - additionWidthOffset,
+                                if currentOffset >= contentWidth - additionWidthOffset,
                                    loadParamOnStart == .underTension {
                                     loading = true
                                     queue.async { load(.start) }
                                 }
 
-                                if moveOffset <= -contentWidth + additionWidthOffset,
+                                if currentOffset <= -contentWidth + additionWidthOffset,
                                    loadParamOnEnd == .underTension {
                                     loading = true
                                     queue.async { load(.end) }
                                 }
                             } else {
-                                if moveOffset >= contentHeight - additionHeightOffset,
+                                if currentOffset >= contentHeight - additionHeightOffset,
                                    loadParamOnStart == .underTension {
                                     loading = true
                                     queue.async { load(.start) }
                                 }
 
-                                if moveOffset <= -contentHeight + additionHeightOffset,
+                                if currentOffset <= -contentHeight + additionHeightOffset,
                                    loadParamOnEnd == .underTension {
                                     loading = true
                                     queue.async { load(.end) }
@@ -192,31 +260,35 @@ public struct FlexScrollView<Content: View>: View {
                             let predictedEnd: CGFloat
                             let clampedOffset: CGFloat
                             if axis == .horizontal {
-                                predictedEnd = value.predictedEndTranslation.width + additionOffset
+                                predictedEnd = value.predictedEndTranslation.width + currentAdditionOffset
                                 clampedOffset = min(max(predictedEnd, minWidthOffset), maxWidthOffset)
                             } else {
-                                predictedEnd = value.predictedEndTranslation.height + additionOffset
+                                predictedEnd = value.predictedEndTranslation.height + currentAdditionOffset
                                 clampedOffset = min(max(predictedEnd, minHeightOffset), maxHeightOffset)
                             }
 
                             withAnimation(.easeOut(duration: 0.8)) {
-                                moveOffset = clampedOffset
+                                if isExternalOffset {
+                                    externalOffset = clampedOffset
+                                } else {
+                                    internalOffset = clampedOffset
+                                }
                             }
 
                             if !loading {
                                 if axis == .horizontal {
-                                    if moveOffset < -contentWidth + screenWidth,
+                                    if currentOffset < -contentWidth + screenWidth,
                                        loadParamOnEnd == .beforeReach {
                                         queue.async { load(.end) }
-                                    } else if moveOffset > contentWidth - screenWidth,
+                                    } else if currentOffset > contentWidth - screenWidth,
                                               loadParamOnStart == .beforeReach {
                                         queue.async { load(.start) }
                                     }
                                 } else {
-                                    if moveOffset < -contentHeight + screenHeight,
+                                    if currentOffset < -contentHeight + screenHeight,
                                        loadParamOnEnd == .beforeReach {
                                         queue.async { load(.end) }
-                                    } else if moveOffset > contentHeight - screenHeight,
+                                    } else if currentOffset > contentHeight - screenHeight,
                                               loadParamOnStart == .beforeReach {
                                         queue.async { load(.start) }
                                     }
@@ -224,7 +296,11 @@ public struct FlexScrollView<Content: View>: View {
 
                             }
 
-                            additionOffset = moveOffset
+                            if isExternalAdditionOffset {
+                                externalAdditionOffset = currentOffset
+                            } else {
+                                internalAdditionOffset = currentOffset
+                            }
 
                             if loading {
                                 queue.asyncAfter(deadline: .init(uptimeNanoseconds: 500)) {
@@ -235,10 +311,19 @@ public struct FlexScrollView<Content: View>: View {
                 )
                 .onChange(of: goToMiddle) { _ in
                     withAnimation {
-                        moveOffset = 0
+                        if isExternalOffset {
+                            externalOffset = 0
+                        } else {
+                            internalOffset = 0
+                        }
                     }
 
-                    additionOffset = 0
+                    if isExternalAdditionOffset {
+                        externalAdditionOffset = 0
+                    } else {
+                        internalAdditionOffset = 0
+                    }
+
                     goToMiddle = false
                 }
         }
