@@ -5,3 +5,4 @@ disabled_rules:
   - redundant_string_enum_value
   - identifier_name
   - superfluous_disable_command
+  - type_body_length
