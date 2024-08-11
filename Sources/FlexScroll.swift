@@ -4,50 +4,74 @@ import SwiftUI
 /// Flexible ScrollView with soft sensitive setting.
 /// It is focused more on pagination, it is great for pagination in both directions.
 ///
+/// Better to use a Deque from swift-collections in your ForEach instead of
+/// an array if you implement two-way pagination, it has a difficulty
+/// inserting at the start of O(1).
+///
 /// **Direction**: in `horizontal` axis – `start` is left, `end` is right.
 /// in `vertical` – `start` is up, `end` is down.
 ///
-/// Better to use a Deque from swift-colletions in your ForEach instead of
-/// an array if you implement two-way pagination, it has a difficulty 
-/// inserting at the start of O(1).
-///
-/// Offset equal zero in middle *all* your ForEach.
+/// `offset` equal zero in middle *all* your ForEach.
+/// Use `additionOffset` for reset offset
 ///
 /// **Attension**:
-/// Don't check `Direction.start` with `.beforeReach` & `startInMiddle` == false,
-/// *think about it*...
+///
+/// Don't use `Direction.start` with
+/// `loadParamOnStart` == `.beforeReach` and
+/// `startInMiddle` == `false`,
+///  *think about it*...
 ///
 public struct FlexScrollView<Content: View>: View {
     private var queue = DispatchQueue.global(qos: .userInteractive)
 
-    @State private var additionOffset: CGFloat = 0
     @State private var contentWidth: CGFloat = 0
     @State private var contentHeight: CGFloat = 0
     @State private var loading = false
 
+    private var moveOffsetRep: CGFloat = 0
+    @State private var additionOffsetRep: CGFloat = 0
+
     private let axis: Axis.Set
     @Binding var moveOffset: CGFloat
+    @Binding var additionOffset: CGFloat
+    @Binding var goToMiddle: Bool
     private let startInMiddle: Bool
+    private let goBackBeforeLoad: Bool
     private let load: (Direction) -> Void
-    private let loadParameterOnStart: LoadParameter
-    private let loadParameterOnEnd: LoadParameter
+    private let loadParamOnStart: LoadParameter
+    private let loadParamOnEnd: LoadParameter
     private let content: Content
 
     public init(
         axis: Axis.Set = .vertical,
         offset: Binding<CGFloat>,
+        additionOffset: Binding<CGFloat>,
         startInMiddle: Bool = false,
+        goBackBeforeLoad: Bool = true,
+        goToMiddle: Binding<Bool>? = nil,
         loadFunc: @escaping (Direction) -> Void = { _ in },
         loadParameterOnStart: LoadParameter = .underTension,
         loadParameterOnEnd: LoadParameter = .beforeReach,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.axis = axis
+
         self._moveOffset = offset
+        self._additionOffset = additionOffset
+
+        if let goToMiddle {
+            self._goToMiddle = goToMiddle
+        } else {
+            self._goToMiddle = .constant(false)
+        }
+
         self.startInMiddle = startInMiddle
+        self.goBackBeforeLoad = goBackBeforeLoad
+
         self.load = loadFunc
-        self.loadParameterOnStart = loadParameterOnStart
-        self.loadParameterOnEnd = loadParameterOnEnd
+        self.loadParamOnStart = loadParameterOnStart
+        self.loadParamOnEnd = loadParameterOnEnd
+
         self.content = content()
     }
 
@@ -87,13 +111,16 @@ public struct FlexScrollView<Content: View>: View {
                         // size and shift offset
                         if axis == .horizontal {
                             let newContentWidth = size.width / 2
-                            let deltaWidth = newContentWidth - contentWidth
 
-                            if deltaWidth > 0 {
-                                moveOffset += deltaWidth
+                            if goBackBeforeLoad {
+                                let deltaWidth = newContentWidth - contentWidth
+
+                                if deltaWidth > 0 {
+                                    moveOffset += deltaWidth
+                                }
+
+                                additionOffset = moveOffset
                             }
-
-                            additionOffset = moveOffset
 
                             contentWidth = newContentWidth
                         } else {
@@ -137,25 +164,25 @@ public struct FlexScrollView<Content: View>: View {
 
                             if axis == .horizontal {
                                 if moveOffset >= contentWidth - additionWidthOffset,
-                                   loadParameterOnStart == .underTension {
+                                   loadParamOnStart == .underTension {
                                     loading = true
                                     queue.async { load(.start) }
                                 }
 
                                 if moveOffset <= -contentWidth + additionWidthOffset,
-                                   loadParameterOnEnd == .underTension {
+                                   loadParamOnEnd == .underTension {
                                     loading = true
                                     queue.async { load(.end) }
                                 }
                             } else {
                                 if moveOffset >= contentHeight - additionHeightOffset,
-                                   loadParameterOnStart == .underTension {
+                                   loadParamOnStart == .underTension {
                                     loading = true
                                     queue.async { load(.start) }
                                 }
 
                                 if moveOffset <= -contentHeight + additionHeightOffset,
-                                   loadParameterOnEnd == .underTension {
+                                   loadParamOnEnd == .underTension {
                                     loading = true
                                     queue.async { load(.end) }
                                 }
@@ -179,18 +206,18 @@ public struct FlexScrollView<Content: View>: View {
                             if !loading {
                                 if axis == .horizontal {
                                     if moveOffset < -contentWidth + screenWidth,
-                                       loadParameterOnEnd == .beforeReach {
+                                       loadParamOnEnd == .beforeReach {
                                         queue.async { load(.end) }
                                     } else if moveOffset > contentWidth - screenWidth,
-                                              loadParameterOnStart == .beforeReach {
+                                              loadParamOnStart == .beforeReach {
                                         queue.async { load(.start) }
                                     }
                                 } else {
                                     if moveOffset < -contentHeight + screenHeight,
-                                       loadParameterOnEnd == .beforeReach {
+                                       loadParamOnEnd == .beforeReach {
                                         queue.async { load(.end) }
                                     } else if moveOffset > contentHeight - screenHeight,
-                                              loadParameterOnStart == .beforeReach {
+                                              loadParamOnStart == .beforeReach {
                                         queue.async { load(.start) }
                                     }
                                 }
@@ -206,46 +233,15 @@ public struct FlexScrollView<Content: View>: View {
                             }
                         }
                 )
-        }
-    }
+                .onChange(of: goToMiddle) { _ in
+                    withAnimation {
+                        moveOffset = 0
+                    }
 
-    private func goToMiddle() {
-        withAnimation(.easeOut(duration: 0.6)) {
-            moveOffset = 0
-        }
-
-        additionOffset = 0
-    }
-}
-
-struct GoToMiddleModifier: ViewModifier {
-    @Binding var trigger: Bool
-    let action: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .onChange(of: trigger) { newValue in
-                if newValue {
-                    action()
-                    trigger = false
+                    additionOffset = 0
+                    goToMiddle = false
                 }
-            }
-    }
-}
-
-extension FlexScrollView {
-    func middle(_ trigger: Binding<Bool>) -> some View {
-        self.modifier(
-            GoToMiddleModifier(trigger: trigger, action: goToMiddle)
-        )
-    }
-
-    func pagination(
-        loadParamOnStart: LoadParameter = .underTension,
-        loadParamOnEnd: LoadParameter = .beforeReach,
-        action: (Direction) -> Void
-    ) -> some View {
-        self
+        }
     }
 }
 
@@ -255,98 +251,4 @@ public enum Direction: String {
 
 public enum LoadParameter: String {
     case underTension, beforeReach
-}
-
-struct HorizontalScrollView: View {
-    @State private var goToMiddle = false
-    @State private var moveOffset: CGFloat = 0
-    @State private var count = 15
-
-    var body: some View {
-        ZStack {
-            FlexScrollView(
-                axis: .horizontal,
-                offset: $moveOffset,
-                loadFunc: { direction in
-                    count += 10
-                    print("\(direction) loaded")
-                },
-                loadParameterOnStart: .underTension,
-                loadParameterOnEnd: .beforeReach
-            ) {
-                HStack {
-                    ForEach(0..<count, id: \.self) { index in
-                        ZStack {
-                            Rectangle()
-                                .fill(.green)
-                                .frame(width: 260)
-
-                            Text(index.description)
-                                .font(.title)
-                                .bold()
-                        }
-                    }
-                }
-            }
-            .middle($goToMiddle)
-
-            VStack {
-                Button("Middle") {
-                    goToMiddle = true
-                }
-                Spacer()
-            }
-        }
-    }
-}
-
-struct VerticalScrollView: View {
-    @State private var goToMiddle = false
-    @State private var moveOffset: CGFloat = 0
-    @State private var count = 15
-
-    var body: some View {
-        ZStack {
-            FlexScrollView(
-                axis: .vertical,
-                offset: $moveOffset,
-                startInMiddle: false,
-                loadFunc: { direction in
-                    count += 10
-                    print("\(direction) loaded")
-                }
-            ) {
-                VStack {
-                    ForEach(0..<count, id: \.self) { index in
-                        ZStack {
-                            Rectangle()
-                                .fill(.green)
-                                .frame(height: 260)
-
-                            Text(index.description)
-                                .font(.title)
-                                .bold()
-                        }
-                    }
-                }
-            }
-
-            VStack {
-                Button("add") {
-                    count += 10
-                }
-                Text(moveOffset.description)
-                Slider(value: $moveOffset, in: -10000...10000)
-                Spacer()
-            }
-        }
-    }
-}
-
-#Preview("HorizontalScrollView") {
-    HorizontalScrollView()
-}
-
-#Preview("VerticalScrollView") {
-    VerticalScrollView()
 }

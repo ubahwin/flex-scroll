@@ -11,6 +11,8 @@
 		B74CC6422C63E49900A99066 /* FlexScroll.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74CC63F2C63E49900A99066 /* FlexScroll.swift */; };
 		B74CC64A2C63F1CE00A99066 /* UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74CC6492C63F1CE00A99066 /* UITests.swift */; };
 		B74CC6662C65571100A99066 /* ViewInspector in Frameworks */ = {isa = PBXBuildFile; productRef = B74CC6652C65571100A99066 /* ViewInspector */; };
+		B74CC6692C67612800A99066 /* HorizontalScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74CC6682C67612800A99066 /* HorizontalScrollView.swift */; };
+		B74CC66B2C67615800A99066 /* VerticalScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74CC66A2C67615800A99066 /* VerticalScrollView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +21,8 @@
 		B74CC63F2C63E49900A99066 /* FlexScroll.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FlexScroll.swift; sourceTree = "<group>"; };
 		B74CC6472C63F1CE00A99066 /* UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B74CC6492C63F1CE00A99066 /* UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITests.swift; sourceTree = "<group>"; };
+		B74CC6682C67612800A99066 /* HorizontalScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HorizontalScrollView.swift; sourceTree = "<group>"; };
+		B74CC66A2C67615800A99066 /* VerticalScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerticalScrollView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,6 +47,7 @@
 		B74CC6252C63A97B00A99066 = {
 			isa = PBXGroup;
 			children = (
+				B74CC6672C67610E00A99066 /* Examples */,
 				B74CC6402C63E49900A99066 /* Sources */,
 				B74CC6482C63F1CE00A99066 /* UITests */,
 				B74CC6302C63A97B00A99066 /* Products */,
@@ -73,6 +78,15 @@
 				B74CC6492C63F1CE00A99066 /* UITests.swift */,
 			);
 			path = UITests;
+			sourceTree = "<group>";
+		};
+		B74CC6672C67610E00A99066 /* Examples */ = {
+			isa = PBXGroup;
+			children = (
+				B74CC6682C67612800A99066 /* HorizontalScrollView.swift */,
+				B74CC66A2C67615800A99066 /* VerticalScrollView.swift */,
+			);
+			path = Examples;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -212,6 +226,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B74CC6692C67612800A99066 /* HorizontalScrollView.swift in Sources */,
+				B74CC66B2C67615800A99066 /* VerticalScrollView.swift in Sources */,
 				B74CC6422C63E49900A99066 /* FlexScroll.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
