@@ -1,14 +1,20 @@
 # FlexScroll
 
-![](https://img.shields.io/badge/iOS-1%2B-green?logo=apple)
+![](https://img.shields.io/badge/iOS-14%2B-green?logo=apple)
 ![](https://img.shields.io/badge/Swift%205.9-FA7343?style=flat&logo=swift&logoColor=white)
 
 Flexible ScrollView with soft sensitive setting.
 It is focused more on pagination, it is great for pagination in both directions.
 
-Better to use a [_Deque_ from swift-collections](https://github.com/apple/swift-collections/blob/main/Documentation/Deque.md) in your ForEach instead of
-an array if you implement two-way pagination, it has a difficulty
-inserting at the start of O(1).
+<div style="display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; column-gap: 24px; row-gap: 20px;">
+  <img src="https://github.com/user-attachments/assets/5fdeb187-308e-4145-981a-73b44282e774" style="height:400px;">
+  <img src="https://github.com/user-attachments/assets/3b058c00-f790-4966-9001-a0e0f261a143" style="height:400px;">
+</div>
+
+> [!TIP]
+> Better to use a [_Deque_ from swift-collections](https://github.com/apple/swift-collections/blob/main/Documentation/Deque.md) in your ForEach instead of
+> an array if you implement two-way pagination, it has a difficulty
+> inserting at the start of O(1).
 
 ## Simplest example
 
